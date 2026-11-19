@@ -2,16 +2,199 @@
 <html lang="es">
 <head>
   <meta charset="utf-8">
-  <title>Mi sitio</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Inicio - Supabase Auth & RLS</title>
   <link rel="stylesheet" href="estilo.css">
 </head>
 <body>
   <nav>
-    <a href="index.html">Inicio</a>.
-    <a href="catalogo.html">Catálogo</a>.
+    <a href="index.html">Inicio</a>
+    <a href="catalogo.html">Catálogo</a>
     <a href="acerca.html">Acerca</a>
   </nav>
-  <h1>Mi primer sitio web</h1>
-  <p>Hola, soy Brandon. Esta es mi página de inicio.</p>
+
+  <h1>Portal con Login y Supabase</h1>
+  <p id="estado-sesion">Verificando sesión...</p>
+
+  <!-- FORMULARIO DE LOGIN / REGISTRO -->
+  <section id="auth-seccion">
+    <h2>Iniciar sesión o registrarse</h2>
+    <form id="login-form" novalidate>
+      <div>
+        <label for="email">Correo electrónico</label><br>
+        <input type="email" id="email" placeholder="correo@ejemplo.com" required>
+      </div>
+      <br>
+      <div>
+        <label for="password">Contraseña (mín. 6 caracteres)</label><br>
+        <input type="password" id="password" placeholder="••••••••" required>
+      </div>
+      <br>
+      <button type="submit" id="btn-login">Iniciar sesión</button>
+      <button type="button" id="btn-registro">Crear cuenta</button>
+    </form>
+  </section>
+
+  <!-- FORMULARIO DE SOLICITUDES (SOLO AL INICIAR SESIÓN) -->
+  <section id="app-seccion" style="display: none;">
+    <button type="button" id="btn-logout">Cerrar sesión</button>
+
+    <h2>Nueva solicitud</h2>
+    <form id="solicitud-form">
+      <div>
+        <label for="titulo">Título</label><br>
+        <input type="text" id="titulo" placeholder="Ej. Revisión de equipo" required>
+      </div>
+      <br>
+      <div>
+        <label for="detalle">Detalle</label><br>
+        <textarea id="detalle" rows="3" placeholder="Describe la solicitud..." required></textarea>
+      </div>
+      <br>
+      <button type="submit">Guardar solicitud</button>
+    </form>
+
+    <h3>Solicitudes guardadas</h3>
+    <ul id="lista-solicitudes"></ul>
+  </section>
+
+  <p id="mensaje"></p>
+
+  <script type="module">
+    import { supabase } from "./supabase-config.js";
+
+    const estadoSesion = document.getElementById("estado-sesion");
+    const authSeccion = document.getElementById("auth-seccion");
+    const appSeccion = document.getElementById("app-seccion");
+    const mensaje = document.getElementById("mensaje");
+
+    const loginForm = document.getElementById("login-form");
+    const btnRegistro = document.getElementById("btn-registro");
+    const btnLogout = document.getElementById("btn-logout");
+    const solicitudForm = document.getElementById("solicitud-form");
+    const listaSolicitudes = document.getElementById("lista-solicitudes");
+
+    function mostrarMensaje(texto) {
+      mensaje.textContent = texto;
+    }
+
+    function validarCredenciales(email, password) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!email || !password) {
+        mostrarMensaje("Completa correo y contraseña.");
+        return false;
+      }
+      if (!emailRegex.test(email)) {
+        mostrarMensaje("El formato del correo no es válido.");
+        return false;
+      }
+      if (password.length < 6) {
+        mostrarMensaje("La contraseña debe tener al menos 6 caracteres.");
+        return false;
+      }
+      return true;
+    }
+
+    async function cargarSolicitudes() {
+      const { data, error } = await supabase
+        .from("solicitudes")
+        .select("id, titulo, detalle, usuario_email, creado_en")
+        .order("id", { ascending: false });
+
+      if (error) {
+        mostrarMensaje("Error al leer solicitudes: " + error.message);
+        return;
+      }
+
+      listaSolicitudes.innerHTML = "";
+      data.forEach((item) => {
+        const li = document.createElement("li");
+        li.textContent = `${item.titulo} — ${item.detalle} (${item.usuario_email || "usuario"})`;
+        listaSolicitudes.appendChild(li);
+      });
+    }
+
+    // Iniciar sesión
+    loginForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const email = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value.trim();
+
+      if (!validarCredenciales(email, password)) return;
+
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) {
+        mostrarMensaje("Error al iniciar sesión: " + error.message);
+      } else {
+        mostrarMensaje("Sesión iniciada correctamente.");
+      }
+    });
+
+    // Crear cuenta nueva
+    btnRegistro.addEventListener("click", async () => {
+      const email = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value.trim();
+
+      if (!validarCredenciales(email, password)) return;
+
+      const { error } = await supabase.auth.signUp({ email, password });
+      if (error) {
+        mostrarMensaje("Error al crear cuenta: " + error.message);
+      } else {
+        mostrarMensaje("Cuenta creada. Si Supabase pide confirmar correo, revísalo o inicia sesión.");
+      }
+    });
+
+    // Cerrar sesión
+    btnLogout.addEventListener("click", async () => {
+      await supabase.auth.signOut();
+      mostrarMensaje("Sesión cerrada.");
+    });
+
+    // Guardar solicitud en public.solicitudes
+    solicitudForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const titulo = document.getElementById("titulo").value.trim();
+      const detalle = document.getElementById("detalle").value.trim();
+
+      if (!titulo || !detalle) {
+        mostrarMensaje("Escribe un título y un detalle.");
+        return;
+      }
+
+      const { data: { user } } = await supabase.auth.getUser();
+
+      const { error } = await supabase
+        .from("solicitudes")
+        .insert([{
+          titulo,
+          detalle,
+          usuario_email: user ? user.email : null
+        }]);
+
+      if (error) {
+        mostrarMensaje("Error al guardar: " + error.message);
+      } else {
+        solicitudForm.reset();
+        mostrarMensaje("Solicitud guardada en Supabase.");
+        cargarSolicitudes();
+      }
+    });
+
+    // Detectar cambios en la sesión
+    supabase.auth.onAuthStateChange((_event, session) => {
+      if (session && session.user) {
+        estadoSesion.textContent = `Sesión iniciada como: ${session.user.email}`;
+        authSeccion.style.display = "none";
+        appSeccion.style.display = "block";
+        cargarSolicitudes();
+      } else {
+        estadoSesion.textContent = "No has iniciado sesión.";
+        authSeccion.style.display = "block";
+        appSeccion.style.display = "none";
+        listaSolicitudes.innerHTML = "";
+      }
+    });
+  </script>
 </body>
 </html>
