@@ -7,58 +7,75 @@
   <link rel="stylesheet" href="estilo.css">
 </head>
 <body>
-  <nav>
-    <a href="index.html">Inicio</a>
-    <a href="catalogo.html">Catálogo</a>
-    <a href="acerca.html">Acerca</a>
-  </nav>
+  <div class="wrapper">
+    <nav class="navbar">
+      <a href="index.html" class="active">Inicio</a>
+      <a href="catalogo.html">Catálogo</a>
+      <a href="acerca.html">Acerca</a>
+    </nav>
 
-  <h1>Portal con Login y Supabase</h1>
-  <p id="estado-sesion">Verificando sesión...</p>
+    <header class="header-box">
+      <h1>Portal con Login y Supabase</h1>
+      <p id="estado-sesion" class="status-badge">Verificando sesión...</p>
+    </header>
 
-  <!-- FORMULARIO DE LOGIN / REGISTRO -->
-  <section id="auth-seccion">
-    <h2>Iniciar sesión o registrarse</h2>
-    <form id="login-form" novalidate>
-      <div>
-        <label for="email">Correo electrónico</label><br>
-        <input type="email" id="email" placeholder="correo@ejemplo.com" required>
+    <!-- FORMULARIO DE LOGIN / REGISTRO -->
+    <section id="auth-seccion" class="card">
+      <h2>Iniciar sesión o registrarse</h2>
+      <p class="card-subtitle">Accede con tu cuenta para administrar y registrar solicitudes.</p>
+
+      <form id="login-form" novalidate>
+        <div class="field">
+          <label for="email">Correo electrónico</label>
+          <input type="email" id="email" placeholder="correo@ejemplo.com" required>
+        </div>
+
+        <div class="field">
+          <label for="password">Contraseña (mín. 6 caracteres)</label>
+          <input type="password" id="password" placeholder="••••••••" required>
+        </div>
+
+        <div class="actions">
+          <button type="submit" id="btn-login" class="btn-primary">Iniciar sesión</button>
+          <button type="button" id="btn-registro" class="btn-secondary">Crear cuenta</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- FORMULARIO DE SOLICITUDES (SOLO AL INICIAR SESIÓN) -->
+    <section id="app-seccion" class="card" style="display: none;">
+      <div class="card-top">
+        <div>
+          <h2>Nueva solicitud</h2>
+          <p class="card-subtitle" style="margin-bottom: 0;">Los registros se guardan directamente en <code>public.solicitudes</code>.</p>
+        </div>
+        <button type="button" id="btn-logout" class="btn-ghost">Cerrar sesión</button>
       </div>
-      <br>
-      <div>
-        <label for="password">Contraseña (mín. 6 caracteres)</label><br>
-        <input type="password" id="password" placeholder="••••••••" required>
+
+      <form id="solicitud-form">
+        <div class="field">
+          <label for="titulo">Título</label>
+          <input type="text" id="titulo" placeholder="Ej. Revisión de equipo" required>
+        </div>
+
+        <div class="field">
+          <label for="detalle">Detalle</label>
+          <textarea id="detalle" rows="3" placeholder="Describe la solicitud..." required></textarea>
+        </div>
+
+        <div class="actions">
+          <button type="submit" class="btn-primary">Guardar solicitud</button>
+        </div>
+      </form>
+
+      <div class="solicitudes-header">
+        <h3>Solicitudes guardadas</h3>
       </div>
-      <br>
-      <button type="submit" id="btn-login">Iniciar sesión</button>
-      <button type="button" id="btn-registro">Crear cuenta</button>
-    </form>
-  </section>
+      <ul id="lista-solicitudes" class="solicitudes-list"></ul>
+    </section>
 
-  <!-- FORMULARIO DE SOLICITUDES (SOLO AL INICIAR SESIÓN) -->
-  <section id="app-seccion" style="display: none;">
-    <button type="button" id="btn-logout">Cerrar sesión</button>
-
-    <h2>Nueva solicitud</h2>
-    <form id="solicitud-form">
-      <div>
-        <label for="titulo">Título</label><br>
-        <input type="text" id="titulo" placeholder="Ej. Revisión de equipo" required>
-      </div>
-      <br>
-      <div>
-        <label for="detalle">Detalle</label><br>
-        <textarea id="detalle" rows="3" placeholder="Describe la solicitud..." required></textarea>
-      </div>
-      <br>
-      <button type="submit">Guardar solicitud</button>
-    </form>
-
-    <h3>Solicitudes guardadas</h3>
-    <ul id="lista-solicitudes"></ul>
-  </section>
-
-  <p id="mensaje"></p>
+    <p id="mensaje" class="alert" role="status"></p>
+  </div>
 
   <script type="module">
     import { supabase } from "./supabase-config.js";
@@ -74,22 +91,23 @@
     const solicitudForm = document.getElementById("solicitud-form");
     const listaSolicitudes = document.getElementById("lista-solicitudes");
 
-    function mostrarMensaje(texto) {
+    function mostrarMensaje(texto, tipo = "info") {
       mensaje.textContent = texto;
+      mensaje.className = texto ? `alert alert-${tipo}` : "alert";
     }
 
     function validarCredenciales(email, password) {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!email || !password) {
-        mostrarMensaje("Completa correo y contraseña.");
+        mostrarMensaje("Completa correo y contraseña.", "error");
         return false;
       }
       if (!emailRegex.test(email)) {
-        mostrarMensaje("El formato del correo no es válido.");
+        mostrarMensaje("El formato del correo no es válido.", "error");
         return false;
       }
       if (password.length < 6) {
-        mostrarMensaje("La contraseña debe tener al menos 6 caracteres.");
+        mostrarMensaje("La contraseña debe tener al menos 6 caracteres.", "error");
         return false;
       }
       return true;
@@ -102,19 +120,42 @@
         .order("id", { ascending: false });
 
       if (error) {
-        mostrarMensaje("Error al leer solicitudes: " + error.message);
+        mostrarMensaje("Error al leer solicitudes: " + error.message, "error");
         return;
       }
 
       listaSolicitudes.innerHTML = "";
+
+      if (!data || data.length === 0) {
+        const li = document.createElement("li");
+        li.className = "empty-state";
+        li.textContent = "Aún no hay solicitudes registradas.";
+        listaSolicitudes.appendChild(li);
+        return;
+      }
+
       data.forEach((item) => {
         const li = document.createElement("li");
-        li.textContent = `${item.titulo} — ${item.detalle} (${item.usuario_email || "usuario"})`;
+        li.className = "solicitud-item";
+
+        const tituloEl = document.createElement("div");
+        tituloEl.className = "solicitud-titulo";
+        tituloEl.textContent = item.titulo;
+
+        const detalleEl = document.createElement("div");
+        detalleEl.className = "solicitud-detalle";
+        detalleEl.textContent = item.detalle;
+
+        const metaEl = document.createElement("div");
+        metaEl.className = "solicitud-meta";
+        const fecha = item.creado_en ? new Date(item.creado_en).toLocaleString("es-MX") : "";
+        metaEl.textContent = `Por: ${item.usuario_email || "usuario"}${fecha ? " • " + fecha : ""}`;
+
+        li.append(tituloEl, detalleEl, metaEl);
         listaSolicitudes.appendChild(li);
       });
     }
 
-    // Iniciar sesión
     loginForm.addEventListener("submit", async (e) => {
       e.preventDefault();
       const email = document.getElementById("email").value.trim();
@@ -124,13 +165,12 @@
 
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) {
-        mostrarMensaje("Error al iniciar sesión: " + error.message);
+        mostrarMensaje("Error al iniciar sesión: " + error.message, "error");
       } else {
-        mostrarMensaje("Sesión iniciada correctamente.");
+        mostrarMensaje("Sesión iniciada correctamente.", "info");
       }
     });
 
-    // Crear cuenta nueva
     btnRegistro.addEventListener("click", async () => {
       const email = document.getElementById("email").value.trim();
       const password = document.getElementById("password").value.trim();
@@ -139,26 +179,24 @@
 
       const { error } = await supabase.auth.signUp({ email, password });
       if (error) {
-        mostrarMensaje("Error al crear cuenta: " + error.message);
+        mostrarMensaje("Error al crear cuenta: " + error.message, "error");
       } else {
-        mostrarMensaje("Cuenta creada. Si Supabase pide confirmar correo, revísalo o inicia sesión.");
+        mostrarMensaje("Cuenta creada e iniciada correctamente.", "info");
       }
     });
 
-    // Cerrar sesión
     btnLogout.addEventListener("click", async () => {
       await supabase.auth.signOut();
-      mostrarMensaje("Sesión cerrada.");
+      mostrarMensaje("Sesión cerrada.", "info");
     });
 
-    // Guardar solicitud en public.solicitudes
     solicitudForm.addEventListener("submit", async (e) => {
       e.preventDefault();
       const titulo = document.getElementById("titulo").value.trim();
       const detalle = document.getElementById("detalle").value.trim();
 
       if (!titulo || !detalle) {
-        mostrarMensaje("Escribe un título y un detalle.");
+        mostrarMensaje("Escribe un título y un detalle.", "error");
         return;
       }
 
@@ -173,15 +211,14 @@
         }]);
 
       if (error) {
-        mostrarMensaje("Error al guardar: " + error.message);
+        mostrarMensaje("Error al guardar: " + error.message, "error");
       } else {
         solicitudForm.reset();
-        mostrarMensaje("Solicitud guardada en Supabase.");
+        mostrarMensaje("Solicitud guardada en Supabase.", "info");
         cargarSolicitudes();
       }
     });
 
-    // Detectar cambios en la sesión
     supabase.auth.onAuthStateChange((_event, session) => {
       if (session && session.user) {
         estadoSesion.textContent = `Sesión iniciada como: ${session.user.email}`;

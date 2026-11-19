@@ -2,16 +2,47 @@
 <html lang="es">
 <head>
   <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Catálogo - Mi sitio</title>
   <link rel="stylesheet" href="estilo.css">
 </head>
 <body>
-  <nav>
-    <a href="index.html">Inicio</a>.
-    <a href="catalogo.html">Catálogo</a>.
-    <a href="acerca.html">Acerca</a>
-  </nav>
-  <h1>Catálogo</h1>
-  <p>Aquí mostraremos datos más adelante.</p>
+  <div class="wrapper">
+    <nav class="navbar">
+      <a href="index.html">Inicio</a>
+      <a href="catalogo.html" class="active">Catálogo</a>
+      <a href="acerca.html">Acerca</a>
+    </nav>
+
+    <header class="header-box">
+      <h1>Catálogo</h1>
+      <p class="status-badge">Datos sincronizados con Supabase</p>
+    </header>
+
+    <section class="card">
+      <h2>Recursos y Proyectos</h2>
+      <p class="card-subtitle">Muestra de elementos estructurados dentro del portal web.</p>
+
+      <div class="solicitudes-list">
+        <div class="solicitud-item">
+          <div class="solicitud-titulo">Módulo de Autenticación</div>
+          <div class="solicitud-detalle">Registro e inicio de sesión de usuarios gestionado mediante Supabase Auth.</div>
+          <div class="solicitud-meta">Estado: Activo • Supabase Auth</div>
+        </div>
+
+        <div class="solicitud-item">
+          <div class="solicitud-titulo">Tabla Solicitudes (RLS)</div>
+          <div class="solicitud-detalle">Inserción y lectura protegida por políticas Row Level Security para usuarios autenticados.</div>
+          <div class="solicitud-meta">Estado: Activo • PostgreSQL</div>
+        </div>
+
+        <div class="solicitud-item">
+          <div class="solicitud-titulo">Despliegue en Cloudflare</div>
+          <div class="solicitud-detalle">Integración continua conectada directamente al repositorio en GitHub.</div>
+          <div class="solicitud-meta">Estado: En línea • Cloudflare</div>
+        </div>
+      </div>
+    </section>
+  </div>
 </body>
 </html>
